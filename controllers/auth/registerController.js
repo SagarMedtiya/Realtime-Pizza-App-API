@@ -1,5 +1,9 @@
 import Joi from 'joi'
 import CustomErrorHandler from '../../services/CustomErrorHandler';
+import {User, RefreshToken} from '../../models'
+import bcrypt  from 'bcrypt';
+import JwtService from '../../services/JwtService';
+import { REFRESH_SECRET } from '../../config';
 const registerController= {
      async register(req,res,next){
         //checklist
@@ -17,7 +21,6 @@ const registerController= {
             password: Joi.string().pattern(new RegExp('^[a-zA-Z0-9]{3,30}$')).required(),
             repeat_password: Joi.ref('password')
         });
-        console.log(req.body);
         const {error} = registerSchema.validate(req.body);
 
         if(error){
@@ -31,9 +34,35 @@ const registerController= {
                 return next(CustomErrorHandler.alreadyExist('This email is already taken.'));
             }
         }catch(err){
-
+            return next(err);
         }
-        res.json({ msg: "Hello from express "});
+
+        const { name, email, password } = req.body;
+
+        //hashedpassword
+        const hashedpassword = await bcrypt.hash(password,10);
+        //prepare the model
+        
+        const user = new User({
+            name,
+            email,
+            password: hashedpassword
+        })
+        let access_token;
+        let refresh_token;
+        try{
+            const result  = await user.save();
+
+            //token
+            access_token = JwtService.sign({ _id:result._id , role: result.role });
+            refresh_token = JwtService.sign({ _id:result._id , role: result.role },'1y', REFRESH_SECRET);
+            //database whitelist
+            await RefreshToken.create({ token: refresh_token });
+        }catch{
+            return next(err);
+        }
+
+        res.json({ access_token: access_token, refresh_token: refresh_token });
     }
 }
 
