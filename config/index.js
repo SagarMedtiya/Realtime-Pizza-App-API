@@ -3,5 +3,9 @@ dotenv.config();
 
 export const {
     PORT,
-    DEBUG_MODE
+    DEBUG_MODE,
+    MONGODB,
+    JWT_SECRET,
+    REFRESH_SECRET,
+    APP_URL
 } = process.env;
